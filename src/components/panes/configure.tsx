@@ -41,7 +41,16 @@ import {isElectron} from 'src/utils/running-context';
 import {useAppDispatch} from 'src/store/hooks';
 import {MenuTooltip} from '../inputs/tooltip';
 import {getRenderMode, getSelectedTheme} from 'src/store/settingsSlice';
+import { HID } from 'src/shims/node-hid';
+import {selectConnectedDeviceByPath} from 'src/store/devicesThunks';
 
+import {
+  IconButtonContainer,
+  IconToggleContainer,
+} from 'src/components/inputs/icon-button';
+import {
+  faLink,
+} from '@fortawesome/free-solid-svg-icons';
 const MenuContainer = styled.div`
   padding: 15px 10px 20px 10px;
 `;
@@ -145,7 +154,7 @@ const Loader: React.FC<{
   loadProgress: number;
   selectedDefinition: VIADefinitionV2 | VIADefinitionV3 | null;
 }> = (props) => {
-  const {loadProgress, selectedDefinition} = props;
+  const { loadProgress, selectedDefinition } = props;
   const dispatch = useAppDispatch();
   const theme = useAppSelector(getSelectedTheme);
 
@@ -155,8 +164,34 @@ const Loader: React.FC<{
   const noConnectedDevices = !Object.values(connectedDevices).length;
   const [showButton, setShowButton] = useState<boolean>(false);
 
+  const [devices, setDevices] = useState([
+  ]);
+
+  const refreshDevices = async () => {
+    let hiddevs = await HID.devices();
+    const newDevices = Array.from({ length: hiddevs.length }).map(
+      (_, i) => ({
+        product: hiddevs[i].product,
+        vendorId: hiddevs[i].vendorId,
+        productId: hiddevs[i].productId,
+        path:hiddevs[i].path
+      })
+    );
+    setDevices(newDevices); // 替换旧的列表
+  };
+
+  const connDevBut = (i) =>{
+    console.log("connDevBu11t",devices[i].path);
+    dispatch(selectConnectedDeviceByPath(devices[i].path));
+  };
+
+  // 自动刷新，每隔 2 秒生成新数据
   useEffect(() => {
-    // TODO: Remove the timeout because it is funky
+    const interval = setInterval(refreshDevices, 2000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  useEffect(() => {
     const timeout = setTimeout(() => {
       if (!selectedDefinition) {
         setShowButton(true);
@@ -164,13 +199,35 @@ const Loader: React.FC<{
     }, 3000);
     return () => clearTimeout(timeout);
   }, [selectedDefinition]);
+
   return (
     <LoaderPane>
-      {<ChippyLoader theme={theme} progress={loadProgress || null} />}
-      {(showButton || noConnectedDevices) && !noSupportedIds && !isElectron ? (
+      <ChippyLoader theme={theme} progress={loadProgress || null} />
+      {isElectron ? (
+        <div style={{ textAlign: 'center' }}>
+          <span>Electron Devices</span>
+          {devices.map((d, idx) => (
+            <div key={idx} style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{paddingRight : '10px', fontSize : '25px'}}>
+                {d.product} ({d.vendorId}:{d.productId})
+              </span>
+              <IconButtonContainer  
+                onClick={() => connDevBut(idx)}
+                style={{borderRadius: '50%'}} 
+              >
+                <FontAwesomeIcon
+                  size={'sm'}
+                  color="var(--color_label)"
+                  icon={faLink}
+                />
+              </IconButtonContainer>
+            </div>
+          ))}
+        </div>
+      ) : (showButton || noConnectedDevices) && !noSupportedIds ? (
         <AccentButtonLarge onClick={() => dispatch(reloadConnectedDevices())}>
           Authorize device
-          <FontAwesomeIcon style={{marginLeft: '10px'}} icon={faPlus} />
+          <FontAwesomeIcon style={{ marginLeft: '10px' }} icon={faPlus} />
         </AccentButtonLarge>
       ) : (
         <LoadingText isSearching={!selectedDefinition} />
@@ -178,6 +235,7 @@ const Loader: React.FC<{
     </LoaderPane>
   );
 };
+
 
 const LoaderPane = styled(CenterPane)`
   display: flex;
@@ -200,10 +258,12 @@ export const ConfigurePane = () => {
   const showLoader = !selectedDefinition || loadProgress !== 1;
   return showLoader ? (
     renderMode === '2D' ? (
-      <Loader
-        selectedDefinition={selectedDefinition || null}
-        loadProgress={loadProgress}
-      />
+      <div>
+        <Loader
+          selectedDefinition={selectedDefinition || null}
+          loadProgress={loadProgress}
+        />
+      </div>
     ) : null
   ) : (
     <ConfigureBasePane>

@@ -1,8 +1,10 @@
+import { isElectron } from 'src/utils/running-context';
 import type {
   AuthorizedDevice,
   ConnectedDevice,
   WebVIADevice,
 } from '../types/types';
+import { eSeverityLevel } from '@microsoft/applicationinsights-web';
 // This is a bit cray
 const globalBuffer: {
   [path: string]: {currTime: number; message: Uint8Array}[];
@@ -63,28 +65,63 @@ const ExtendedHID = {
     requestedDevice.forEach(tagDevice);
     return requestedDevice[0];
   },
+// ----------------- 获取设备列表 -----------------
   getFilteredDevices: async () => {
     try {
-      const hidDevices = filterHIDDevices(await navigator.hid.getDevices());
-      return hidDevices;
+      if(isElectron)
+      {
+        const hidDevices = filterHIDDevices(await window.nodehid.getDevices());
+        // console.log("getFilteredDevices -> nodehid 获取设备列表",hidDevices);
+        return hidDevices;
+      }
+      else
+      {
+        const hidDevices = filterHIDDevices(await navigator.hid.getDevices());
+        return hidDevices;
+      }
     } catch (e) {
       return [];
     }
   },
   devices: async (requestAuthorize = false) => {
-    let devices = await ExtendedHID.getFilteredDevices();
-    // TODO: This is a hack to avoid spamming the requestDevices popup
-    if (devices.length === 0 || requestAuthorize) {
-      try {
-        await ExtendedHID.requestDevice();
-      } catch (e) {
-        // The request seems to fail when the last authorized device is disconnected.
-        return [];
+      if(isElectron)
+      {
+        // 先 await 获取设备列表
+        const allDevices = await window.nodehid.devices();
+
+        // 过滤符合条件的设备
+        const hidDevices = allDevices.filter((d) => d.usagePage === 0xff60 && d.usage === 0x61);
+
+        // console.log("nodehid 获取设备列表", hidDevices);
+
+        // 给每个设备挂载 HID 对象
+        hidDevices.forEach((hidDevice) => {
+          hidDevice.HID = HID;
+        });
+
+        return hidDevices; // 这里返回的就是数组，可以直接拿 length
       }
-      devices = await ExtendedHID.getFilteredDevices();
-    }
-    return devices.map(tagDevice);
+      else
+      {
+        let devices = await ExtendedHID.getFilteredDevices();
+        // TODO: This is a hack to avoid spamming the requestDevices popup
+        if (devices.length === 0 || requestAuthorize) {
+          try {
+            await ExtendedHID.requestDevice();
+          } catch (e) {
+            // The request seems to fail when the last authorized device is disconnected.
+            return [];
+          }
+          devices = await ExtendedHID.getFilteredDevices();
+        }
+        console.log("webhid11111->",devices);
+        console.log("webhid22222->",devices.map(tagDevice));
+        
+        return devices.map(tagDevice);
+      }
+
   },
+// ----------------- 获取设备列表 -----------------
   HID: class HID {
     _hidDevice?: WebVIADevice;
     interface: number = -1;
@@ -94,26 +131,55 @@ const ExtendedHID = {
     path: string = '';
     openPromise: Promise<void> = Promise.resolve();
     constructor(path: string) {
-      this._hidDevice = ExtendedHID._cache[path];
-      // TODO: seperate open attempt from constructor as it's async
-      // Attempt to connect to the device
 
-      if (this._hidDevice) {
-        this.vendorId = this._hidDevice.vendorId;
-        this.productId = this._hidDevice.productId;
-        this.path = this._hidDevice.path;
-        this.interface = this._hidDevice.interface;
-        this.productName = this._hidDevice.productName;
-        globalBuffer[this.path] = globalBuffer[this.path] || [];
-        eventWaitBuffer[this.path] = eventWaitBuffer[this.path] || [];
-        if (!this._hidDevice._device.opened) {
+      if(isElectron)
+      {
+        console.log("Electron new hid hid(path)",path);
+        const hidDevice = window.nodehid.devices().filter(function(d){
+          return d.usagePage === 0xff60 && d.usage === 0x61 && d.path == path
+        })[0];
+        console.log("Electron new hid hid(path)-hidDevice",hidDevice);
+        if(hidDevice)
+        {
+          this.vendorId = hidDevice.vendorId;
+          this.productId = hidDevice.productId;
+          this.path = hidDevice.path;
+          this.interface = hidDevice.interface;
+          this.productName = hidDevice.productName;
+          globalBuffer[this.path] = globalBuffer[this.path] || [];
+          eventWaitBuffer[this.path] = eventWaitBuffer[this.path] || [];
           this.open();
         }
-      } else {
-        throw new Error('Missing hid device in cache');
+      }
+      else
+      {
+        // 这个是webhid的
+        this._hidDevice = ExtendedHID._cache[path];
+        // TODO: seperate open attempt from constructor as it's async
+        // Attempt to connect to the device
+
+        if (this._hidDevice) {
+          this.vendorId = this._hidDevice.vendorId;
+          this.productId = this._hidDevice.productId;
+          this.path = this._hidDevice.path;
+          this.interface = this._hidDevice.interface;
+          this.productName = this._hidDevice.productName;
+          globalBuffer[this.path] = globalBuffer[this.path] || [];
+          eventWaitBuffer[this.path] = eventWaitBuffer[this.path] || [];
+          if (!this._hidDevice._device.opened) {
+            this.open();
+          }
+        } else {
+          throw new Error('Missing hid device in cache');
+        }
       }
     }
     async open() {
+      if(isElectron)
+      {
+        this.setupListeners();
+        return Promise.resolve();
+      }
       if (this._hidDevice && !this._hidDevice._device.opened) {
         this.openPromise = this._hidDevice._device.open();
         this.setupListeners();
@@ -121,24 +187,57 @@ const ExtendedHID = {
       }
       return Promise.resolve();
     }
-    // Should we unsubscribe at some point of time
     setupListeners() {
-      if (this._hidDevice) {
-        this._hidDevice._device.addEventListener('inputreport', (e) => {
-          if (eventWaitBuffer[this.path].length !== 0) {
-            // It should be impossible to have a handler in the buffer
-            // that has a ts that happened after the current message
-            // came in
-            (eventWaitBuffer[this.path].shift() as any)(
-              new Uint8Array(e.data.buffer),
-            );
-          } else {
-            globalBuffer[this.path].push({
-              currTime: Date.now(),
-              message: new Uint8Array(e.data.buffer),
+      console.log("setupListeners会执行m?");
+      
+      if (isElectron) {
+        // Electron 下使用 node-hid
+        try {
+          const dev = new window.nodehid.HID(this.path);
+          console.log("Electron setupListeners: 已打开监听 ->", this.path);
+
+          dev.on("data", (data) => {
+            const buf = new Uint8Array(data);
+            // 如果有等待处理的回调，就优先发给它
+            if (eventWaitBuffer[this.path].length !== 0) {
+              (eventWaitBuffer[this.path].shift() as any)(buf);
+            } else {
+              // 否则缓存起来
+              globalBuffer[this.path].push({
+                currTime: Date.now(),
+                message: buf,
+              });
+            }
+          });
+
+          dev.on("error", (err) => {
+            console.error("HID device error:", err);
+          });
+
+          // 保存这个设备对象以便后续 write() 可重用
+          this._hidDevice = dev;
+        } catch (e) {
+          console.error("Electron setupListeners error:", e);
+        }
+      } else {
+        // ✅ WebHID 原有逻辑
+          if (this._hidDevice) {
+            this._hidDevice._device.addEventListener('inputreport', (e) => {
+              if (eventWaitBuffer[this.path].length !== 0) {
+                // It should be impossible to have a handler in the buffer
+                // that has a ts that happened after the current message
+                // came in
+                (eventWaitBuffer[this.path].shift() as any)(
+                  new Uint8Array(e.data.buffer),
+                );
+              } else {
+                globalBuffer[this.path].push({
+                  currTime: Date.now(),
+                  message: new Uint8Array(e.data.buffer),
+                });
+              }
             });
           }
-        });
       }
     }
 
@@ -170,6 +269,14 @@ const ExtendedHID = {
     }
 
     async write(arr: number[]) {
+      if(isElectron)
+      {
+        // 打开设备
+        const dev = new window.nodehid.HID(this.path);
+        // 写入数据（注意第一个字节是Report ID）
+        dev.write(arr);
+        return;
+      }
       await this.openPromise;
       const data = new Uint8Array(arr.slice(1));
       await this._hidDevice?._device.sendReport(0, data);

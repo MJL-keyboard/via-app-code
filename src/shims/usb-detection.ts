@@ -1,3 +1,5 @@
+import { isElectron } from "src/utils/running-context";
+
 type USBMonitorEvent = 'remove' | 'change';
 export class usbDetect {
   static _listeners: {change: Function[]; remove: Function[]} = {
@@ -6,15 +8,41 @@ export class usbDetect {
   };
   static shouldMonitor = false;
   static hasMonitored = false;
+  static timer: NodeJS.Timeout | null = null; // 定时器引用
+
   static startMonitoring() {
-    this.shouldMonitor = true;
-    if (!this.hasMonitored && navigator.hid) {
-      navigator.hid.addEventListener('connect', usbDetect.onConnect);
-      navigator.hid.addEventListener('disconnect', usbDetect.onDisconnect);
+
+    if(isElectron)
+    {
+        
+      // 启动定时器（每 1000ms 跑一次）
+      if (!this.timer) {
+        this.timer = setInterval(() => {
+          usbDetect.on_usb_detection_TimerTick();
+        }, 1000);
+      }
     }
+    else
+    {
+      this.shouldMonitor = true;
+      console.log("startMonitoring------------------------------");
+      if (!this.hasMonitored && navigator.hid) {
+        navigator.hid.addEventListener('connect', usbDetect.onConnect);
+        navigator.hid.addEventListener('disconnect', usbDetect.onDisconnect);
+      }
+    }
+
+
   }
   static stopMonitoring() {
-    this.shouldMonitor = false;
+    if(isElectron)
+    {
+      
+    }
+    else
+    {
+      this.shouldMonitor = false;
+    }
   }
   private static onConnect = ({device}: HIDConnectionEvent) => {
     console.log('Detected Connection');
@@ -36,5 +64,14 @@ export class usbDetect {
     this._listeners[eventName] = this._listeners[eventName].filter(
       (f) => f !== cb,
     );
+  }
+
+
+
+
+  
+  /** ✅ 定时器回调函数（你可以在这里写辑） */
+  private static on_usb_detection_TimerTick() {
+
   }
 }
