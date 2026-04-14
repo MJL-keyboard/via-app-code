@@ -25,10 +25,13 @@ export default {
   _QK_LAYER_TAP_TOGGLE: 0x52c0,
   _QK_LAYER_TAP_TOGGLE_MAX: 0x52df,
   _QK_LAYER_MOD_MASK: 0x1f,
+
   _QK_MACRO: 0x7700,
-  _QK_MACRO_MAX: 0x777f,
+  _QK_MACRO_MAX: 0x777F,
+
   _QK_KB: 0x7e00,
-  _QK_KB_MAX: 0x7eff,
+  _QK_KB_MAX: 0x7E3F,
+
   KC_NO: 0x0000,
   KC_TRNS: 0x0001,
   KC_A: 0x0004,
@@ -408,6 +411,13 @@ export default {
   MI_MODSU: 0x71c8,
   MI_BENDD: 0x71c9,
   MI_BENDU: 0x71ca,
+
+  QK_USB:0x7784,
+  QK_24G:0x7785,
+  QK_BLE1:0x7793,
+  QK_BLE2:0x7794,
+  QK_BLE3:0x7795,
+
   BL_ON: 0x7800,
   BL_OFF: 0x7801,
   BL_DEC: 0x7803,

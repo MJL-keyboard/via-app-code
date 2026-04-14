@@ -610,13 +610,7 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
           shortName: 'LShft',
         },
         {name: 'Right Shift', code: 'KC_RSFT', width: 2750, shortName: 'RShft'},
-        {
-          name: 'Left Ctrl',
-          code: 'KC_LCTL',
-          keys: 'ctrl',
-          width: 1250,
-          shortName: 'LCtl',
-        },
+        {name: 'Left Ctrl', code: 'KC_LCTL', keys: 'ctrl', width: 1250},
         {name: 'Right Ctrl', code: 'KC_RCTL', width: 1250, shortName: 'RCtl'},
         {
           name: 'Left Win',
@@ -933,6 +927,17 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
         {name: 'Music Mode', code: 'MU_MOD'},
       ],
     },
+    {
+      id: 'wireless',
+      label: 'Wireless',
+      keycodes: [
+        {name: 'USB', code: 'QK_USB', title: ''},
+        {name: '24G', code: 'QK_24G', title: ''},
+        {name: 'BLE1', code: 'QK_BLE1', title: ''},
+        {name: 'BLE2', code: 'QK_BLE2', title: ''},
+        {name: 'BLE3', code: 'QK_BLE3', title: ''},
+      ]
+    },
     /* These are for controlling the original backlighting and bottom RGB. */
     {
       id: 'qmk_lighting',
@@ -1001,7 +1006,7 @@ export const categoriesForKeycodeModule = (
   keycodeModule: BuiltInKeycodeModule | 'default',
 ) =>
   ({
-    default: ['basic', 'media', 'macro', 'layers', 'special'],
+    default: ['basic', 'media', 'macro', 'layers', 'special','wireless'],
     [BuiltInKeycodeModule.WTLighting]: ['wt_lighting'],
     [BuiltInKeycodeModule.QMKLighting]: ['qmk_lighting'],
   }[keycodeModule]);
