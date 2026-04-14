@@ -941,7 +941,7 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
         {name: 'BLE1', code: 'QK_BLE1', title: ''},
         {name: 'BLE2', code: 'QK_BLE2', title: ''},
         {name: 'BLE3', code: 'QK_BLE3', title: ''},
-        {name: 'BLE_OFF', code: 'BL_OFF', title: ''},
+        {name: 'BLEOFF', code: 'BL_OFF', title: ''},
       ],
     },
     /* These are for controlling the original backlighting and bottom RGB. */
