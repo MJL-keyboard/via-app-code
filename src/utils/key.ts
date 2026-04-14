@@ -209,17 +209,20 @@ export const keycodesList = getKeycodes().reduce<IKeycode[]>(
 );
 
 export const getByteToKey = (basicKeyToByte: Record<string, number>) =>
-  Object.keys(basicKeyToByte).reduce((p, n) => {
-    const key = basicKeyToByte[n];
-    if (key in p) {
-      const basicKeycode = keycodesList.find(({code}) => code === n);
-      if (basicKeycode) {
-        return {...p, [key]: basicKeycode.code};
+  Object.keys(basicKeyToByte).reduce(
+    (p, n) => {
+      const key = basicKeyToByte[n];
+      if (key in p) {
+        const basicKeycode = keycodesList.find(({code}) => code === n);
+        if (basicKeycode) {
+          return {...p, [key]: basicKeycode.code};
+        }
+        return p;
       }
-      return p;
-    }
-    return {...p, [key]: n};
-  }, {} as {[key: number]: string});
+      return {...p, [key]: n};
+    },
+    {} as {[key: number]: string},
+  );
 
 function isLayerKey(byte: number, basicKeyToByte: Record<string, number>) {
   return [
@@ -470,14 +473,10 @@ function generateMacros(numMacros: number = 16): IKeycode[] {
     const newName = `M${idx}`;
     const newCode = `MACRO(${idx})`;
     const newTitle = `Macro ${idx}`;
-    res = [
-      ...res,
-      {name: newName, title: newTitle, code: newCode},
-    ];
+    res = [...res, {name: newName, title: newTitle, code: newCode}];
   }
   return res;
 }
-
 
 export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
   return [
@@ -610,7 +609,13 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
           shortName: 'LShft',
         },
         {name: 'Right Shift', code: 'KC_RSFT', width: 2750, shortName: 'RShft'},
-        {name: 'Left Ctrl', code: 'KC_LCTL', keys: 'ctrl', width: 1250},
+        {
+          name: 'Left Ctrl',
+          code: 'KC_LCTL',
+          keys: 'ctrl',
+          width: 1250,
+          shortName: 'LCtl',
+        },
         {name: 'Right Ctrl', code: 'KC_RCTL', width: 1250, shortName: 'RCtl'},
         {
           name: 'Left Win',
@@ -749,7 +754,7 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
       id: 'macro',
       label: 'Macro',
       width: 'label',
-      keycodes: generateMacros(numMacros)
+      keycodes: generateMacros(numMacros),
     },
     buildLayerMenu(),
     {
@@ -936,7 +941,7 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
         {name: 'BLE1', code: 'QK_BLE1', title: ''},
         {name: 'BLE2', code: 'QK_BLE2', title: ''},
         {name: 'BLE3', code: 'QK_BLE3', title: ''},
-      ]
+      ],
     },
     /* These are for controlling the original backlighting and bottom RGB. */
     {
@@ -1006,10 +1011,10 @@ export const categoriesForKeycodeModule = (
   keycodeModule: BuiltInKeycodeModule | 'default',
 ) =>
   ({
-    default: ['basic', 'media', 'macro', 'layers', 'special','wireless'],
+    default: ['basic', 'media', 'macro', 'layers', 'special', 'wireless'],
     [BuiltInKeycodeModule.WTLighting]: ['wt_lighting'],
     [BuiltInKeycodeModule.QMKLighting]: ['qmk_lighting'],
-  }[keycodeModule]);
+  })[keycodeModule];
 
 export const getKeycodesForKeyboard = (
   definition: VIADefinitionV3 | VIADefinitionV2,
@@ -1022,8 +1027,8 @@ export const getKeycodesForKeyboard = (
       keycodes === KeycodeType.None
         ? []
         : keycodes === KeycodeType.QMK
-        ? categoriesForKeycodeModule(BuiltInKeycodeModule.QMKLighting)
-        : categoriesForKeycodeModule(BuiltInKeycodeModule.WTLighting),
+          ? categoriesForKeycodeModule(BuiltInKeycodeModule.QMKLighting)
+          : categoriesForKeycodeModule(BuiltInKeycodeModule.WTLighting),
     );
   } else {
     const {keycodes} = definition;
