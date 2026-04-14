@@ -936,11 +936,12 @@ export function getKeycodes(numMacros = 16): IKeycodeMenu[] {
       id: 'wireless',
       label: 'Wireless',
       keycodes: [
-        {name: 'USB', code: 'QK_USB', title: ''},
-        {name: '24G', code: 'QK_24G', title: ''},
+        {name: 'USBTG', code: 'QK_USB', title: ''},
+        {name: '2.4G', code: 'QK_24G', title: ''},
         {name: 'BLE1', code: 'QK_BLE1', title: ''},
         {name: 'BLE2', code: 'QK_BLE2', title: ''},
         {name: 'BLE3', code: 'QK_BLE3', title: ''},
+        {name: 'BLE_OFF', code: 'BL_OFF', title: ''},
       ],
     },
     /* These are for controlling the original backlighting and bottom RGB. */
